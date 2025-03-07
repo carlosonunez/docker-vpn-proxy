@@ -40,7 +40,8 @@ run_openconnect () {
 }
 
 run_openvpn() {
-  openvpn --script-security 2 --config /etc/openvpn/openvpn.config
+  openvpn --script-security 2 --config /etc/openvpn/openvpn.config --auth-user-pass /login_info \
+    --up /etc/openvpn/update-resolv-conf.sh --down /etc/openvpn/update-resolv-conf.sh --down-pre
 }
 
 start_vnc_server() {

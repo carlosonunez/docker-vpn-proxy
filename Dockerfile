@@ -33,18 +33,16 @@ RUN cd /tools/microsocks && make && make install
 RUN apt -y install privoxy
 
 FROM proxies AS openvpn
-RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
 RUN apt -y install openvpn
-RUN for script in network resolve; \
-    do git clone https://github.com/alfredopalhares/openvpn-update-resolv-conf /tmp/systemd-$script && \
-    mv /tmp/systemd-$script/update-systemd-$script.sh /etc/openvpn/update-systemd-$script.sh && \
-    chmod 755 /etc/openvpn/update-systemd-$script.sh; \
-    done
+RUN curl -o /etc/openvpn/update-resolv-conf.sh \
+  https://raw.githubusercontent.com/OpenVPN/openvpn/e739f41d05084c1bc9bfb6c5d49c74de37e53dc7/contrib/pull-resolv-conf/client.up
+RUN chmod +x /etc/openvpn/update-resolv-conf.sh
 
 FROM openvpn AS common-finalconfigs
 RUN apt -y install ca-certificates && update-ca-certificates
 
 FROM common-finalconfigs AS app
+RUN rm -f /usr/sbin/resolvconf
 RUN wget -O /usr/local/bin/test-globalprotect-login.py https://raw.githubusercontent.com/dlenski/gp-saml-gui/master/test-globalprotect-login.py
 RUN chmod +x /usr/local/bin/test-globalprotect-login.py
 RUN apt -y install sudo # gp-saml-gui requires sudo
