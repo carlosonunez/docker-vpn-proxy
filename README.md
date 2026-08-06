@@ -28,6 +28,7 @@ Inspired by [wazum/openconnect-proxy](https://github.com/wazum/openconnect-proxy
     * [Netbird](#netbird)
     * [Starting and stopping Docker Proxy](#starting-and-stopping-docker-proxy)
 * [Alternate Configurations](#alternate-configurations)
+    * [Want to change the HTTP and SOCKS5 proxy ports?](#want-to-change-the-http-and-socks5-proxy-ports)
     * [Need to change the path to the Docker UNIX socket?](#need-to-change-the-path-to-the-docker-unix-socket)
     * [Does your VPN require a client certificate?](#does-your-vpn-require-a-client-certificate)
     * [Does your VPN have multiple gateways?](#does-your-vpn-have-multiple-gateways)
@@ -142,15 +143,21 @@ Next, start the VPN: `./start_vpn.sh`. You will not see any output if successful
 Finally, configure your browser to use the proxy by setting its HTTP proxy to `localhost:8118`
 and SOCKS proxy to `localhost:8889`.
 
-> **NOTE**: Set `HTTP_PROXY_PORT` and `SOCKS5_PROXY_PORT` in your environment dotfile to change the HTTP and
-> SOCKS5 proxy ports respectively.
-
 To stop the VPN, simply run: `./stop_vpn.sh`.
 
 **NOTE**: If your `.env` file is not in your current working directory, use this instead:
 `ENV_FILE=/path/to/env ./stop_vpn.sh`
 
 ## Alternate Configurations
+
+### Want to change the HTTP and SOCKS5 proxy ports?
+
+Add this to your `.env`:
+
+```sh
+HTTP_PROXY_PORT=1234 # change '1234' to your port
+SOCKS5_PROXY_PORT=1234 # change '1234' to your port
+```
 
 ### Need to change the path to the Docker UNIX socket?
 
