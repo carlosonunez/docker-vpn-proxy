@@ -38,6 +38,7 @@ Inspired by [wazum/openconnect-proxy](https://github.com/wazum/openconnect-proxy
     * [Execute shell requests through the proxy](#execute-shell-requests-through-the-proxy)
         * [Through proxychains (recommended)](#through-proxychains-recommended)
         * [Through simple environment variables](#through-simple-environment-variables)
+        * [Running multiple VPNs at once](#running-multiple-vpns-at-once)
 * [Troubleshooting](#troubleshooting)
     * [My connection is really slow. How can I fix it?](#my-connection-is-really-slow-how-can-i-fix-it)
     * [I need to use a csd-wrapper script to connect to my VPN. How can I do that?](#i-need-to-use-a-csd-wrapper-script-to-connect-to-my-vpn-how-can-i-do-that)
@@ -265,6 +266,52 @@ or you can put them before your command to use them for one-off processes:
 
 ```sh
 HTTP_PROXY=localhost:8118 HTTPS_PROXY=localhost:8118 SOCKS_PROXY=localhost:8889 curl [options]
+```
+
+#### Running multiple VPNs at once
+
+Connecting to a VPN usually means forwarding all of your network traffic to a
+single VPN provider. This gets awkward when you need to work with multiple
+VPNs...unless you're using Docker Proxy.
+
+Create `.env` files for every VPN service you need to connect to:
+
+```sh
+cat >site-1.env <<-EOF
+export HTTP_PROXY_PORT=48118
+export SOCKS5_PROXY_PORT=48889
+export NETBIRD_URL=https://netbird.site1.company:12345
+export DISABLE_OPENVPN=true
+EOF
+
+cat >site-2.env <<-EOF
+export OPENVPN_CONFIG_FILE=$HOME/site-2.ovpn.config
+export HTTP_PROXY_PORT=58118
+export SOCKS5_PROXY_PORT=58889
+EOF
+
+cat >site-3.env <<-EOF
+export OPENCONNECT_USER=username
+export OPENCONNECT_PASSWORD=supersecret
+export OPENCONNECT_URL=https://vpn.site3.company
+export HTTP_PROXY_PORT=68118
+export SOCKS5_PROXY_PORT=68889
+```
+
+Then start Docker Proxy for each of them:
+
+```sh
+for i in $(seq 1 3); do ENV_FILE="site-${i}.env" ./start-vpn.sh; done
+```
+
+Now you can create multiple Firefox/Chrome profiles or use a proxy-switching
+extension like FoxyProxy to switch between each proxy as needed to access each
+VPN without having any of them take over all of your network traffic:
+
+```sh
+curl -x socks5h://localhost:48889 example.site1.company # resolves!
+curl -x socks5h://localhost:58889 example.site2.company # resolves!
+curl -x socks5h://localhost:68889 example.site3.company # resolves!
 ```
 
 ## Troubleshooting
