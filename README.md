@@ -12,6 +12,40 @@ This image creates a Docker container that:
 Inspired by [wazum/openconnect-proxy](https://github.com/wazum/openconnect-proxy) and
 [matinrco/openconnect-proxy](https://github.com/matinrco/openconnect-proxy).
 
+
+<!-- vim-markdown-toc GFM -->
+
+* [Why?](#why)
+* [Compatible with](#compatible-with)
+    * [via OpenConnect](#via-openconnect)
+    * [via OpenVPN](#via-openvpn)
+    * [via other means](#via-other-means)
+* [Not Compatible With](#not-compatible-with)
+* [How do I use?](#how-do-i-use)
+    * [Configuring docker-proxy](#configuring-docker-proxy)
+    * [openconnect](#openconnect)
+    * [openvpn](#openvpn)
+    * [Netbird](#netbird)
+    * [Starting and stopping Docker Proxy](#starting-and-stopping-docker-proxy)
+* [Alternate Configurations](#alternate-configurations)
+    * [Need to change the path to the Docker UNIX socket?](#need-to-change-the-path-to-the-docker-unix-socket)
+    * [Does your VPN require a client certificate?](#does-your-vpn-require-a-client-certificate)
+    * [Does your VPN have multiple gateways?](#does-your-vpn-have-multiple-gateways)
+    * [Does your GlobalProtect VPN require Single Sign On authentication?](#does-your-globalprotect-vpn-require-single-sign-on-authentication)
+* [Cool Use Cases](#cool-use-cases)
+    * [Dedicated browser for separating normal web browsing from "protected" web browsing](#dedicated-browser-for-separating-normal-web-browsing-from-protected-web-browsing)
+    * [Execute shell requests through the proxy](#execute-shell-requests-through-the-proxy)
+        * [Through proxychains (recommended)](#through-proxychains-recommended)
+        * [Through simple environment variables](#through-simple-environment-variables)
+* [Troubleshooting](#troubleshooting)
+    * [My connection is really slow. How can I fix it?](#my-connection-is-really-slow-how-can-i-fix-it)
+    * [I need to use a csd-wrapper script to connect to my VPN. How can I do that?](#i-need-to-use-a-csd-wrapper-script-to-connect-to-my-vpn-how-can-i-do-that)
+    * [I'm running Docker Proxy with a M1 MacBook, but want to use the x86 version. How?](#im-running-docker-proxy-with-a-m1-macbook-but-want-to-use-the-x86-version-how)
+    * [I get this weird `512 Custom Error` after logging in.](#i-get-this-weird-512-custom-error-after-logging-in)
+    * [I'd like to use `podman`; how can I do that?](#id-like-to-use-podman-how-can-i-do-that)
+
+<!-- vim-markdown-toc -->
+
 ## Why?
 
 Use this if you want to use VPN but don't want it taking over all traffic on your machine.
@@ -116,11 +150,13 @@ To stop the VPN, simply run: `./stop_vpn.sh`.
 **NOTE**: If your `.env` file is not in your current working directory, use this instead:
 `ENV_FILE=/path/to/env ./stop_vpn.sh`
 
-## Need to change the path to the Docker UNIX socket?
+## Alternate Configurations
+
+### Need to change the path to the Docker UNIX socket?
 
 Prefix `./{start,stop}_vpn.sh` with `VPN_DOCKER_SOCK=[PATH]`.
 
-## Does your VPN require a client certificate?
+### Does your VPN require a client certificate?
 
 If so and you are using openconnect, add this to your `ENV_FILE`:
 
@@ -132,7 +168,7 @@ OPENCONNECT_CERT_KEY=/path/to/key
 If you are using OpenVPN, embed the certificate in `<ca>`, `<cert>`, and `<key>`
 statements as needed.
 
-## Does your VPN have multiple gateways?
+### Does your VPN have multiple gateways?
 
 If so, choose the VPN server corresponding to the gateway that you would like to connect to.
 For more info on why you need to do this,
@@ -142,7 +178,7 @@ For more info on why you need to do this,
 > HTTP proxies, use `docker cp` to copy them into `/mnt/extras`, then run the
 > command with `docker exec`.
 
-## Does your GlobalProtect VPN require Single Sign On authentication?
+### Does your GlobalProtect VPN require Single Sign On authentication?
 
 Some GlobalProtect VPNs require you to log in via a web browser to finish
 authenticating.
