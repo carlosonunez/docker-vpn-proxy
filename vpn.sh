@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 CREATE_DOCKER_VOLUME="${CREATE_DOCKER_VOLUME:-true}"
 DELETE_DOCKER_VOLUME="${DELETE_DOCKER_VOLUME:-false}"
+CONTAINER_BIN="${CONTAINER_BIN:-docker}"
+test -n "$VERBOSE" && set -x
 if test -n "$VPN_DOCKER_SOCK"
 then
   export DOCKER_HOST="unix://$VPN_DOCKER_SOCK"
@@ -19,6 +21,19 @@ _create_scripts() {
     echo "true" > "$script_file"
   fi
   chmod +x "$script_file"
+}
+
+_vpn_container_image_name() {
+  local image_name base_image_name
+  base_image_name="local/${CONTAINER_BIN}_vpn"
+  image_name="$VPN_DOCKER_IMAGE_NAME"
+  test -n "$ENV_FILE" && image_name="${base_image_name}_$(base64 -w 0 <<< "$ENV_FILE" | head -c 24 | tr '[:upper:]' '[:lower:]')"
+  test -z "$image_name" && image_name="$base_image_name"
+  echo "$image_name"
+}
+
+_vpn_container_name() {
+  basename "$(_vpn_container_image_name)"
 }
 
 env_file_present() {
@@ -82,17 +97,28 @@ delete_openvpn_scripts() {
   rm -f "$(openvpn_down_file)"
 }
 
-build_docker_volume() {
+build_container_volume() {
   if grep -Eiq '^true$' <<< "$CREATE_DOCKER_VOLUME"
   then
     vol_name="$(printf "%s-volume" "$1")"
-    docker volume create "$vol_name" &>/dev/null && printf "%s" "$vol_name"
+    if "$CONTAINER_BIN" volume ls | grep -q "$vol_name"
+    then
+      printf "%s" "$vol_name"
+      return 0
+    fi
+    result=$("$CONTAINER_BIN" volume create "$vol_name" 2>&1)
+    if test "$?" -ne 0
+    then
+      >&2 echo "ERROR: Failed to create volume '$vol_name': $result"
+      return 1
+    fi
+    printf "%s" "$vol_name"
   fi
 }
 
-delete_docker_volume_if_requested() {
+delete_container_volume_if_requested() {
   grep -Eiq '^true$' <<< "$DELETE_DOCKER_VOLUME" || return 0
-  docker volume rm "${1}-volume" || true
+  "$CONTAINER_BIN" volume rm "${1}-volume" || true
 }
 
 connect_to_vnc_server_if_oidc_login_required() {
@@ -110,13 +136,11 @@ if env_file_present
 then
   export $(cat "$ENV_FILE" | grep -v "_OPTIONS" | xargs)
 fi
-VPN_CONTAINER_NAME="${VPN_CONTAINER_NAME:-vpn}"
-VPN_DOCKER_IMAGE_NAME="${VPN_DOCKER_IMAGE_NAME:-local/docker_vpn}"
 REBUILD_IMAGE="${REBUILD_IMAGE:-false}"
 HTTP_PROXY_PORT="${HTTP_PROXY_PORT:-8118}"
 SOCKS_PROXY_PORT="${SOCKS_PROXY_PORT:-8889}"
 
-resolve_docker_platform_or_fail() {
+resolve_container_platform_or_fail() {
   _resolve_using_cpu_arch() {
     case "$(uname -m)" in
       x86_64)
@@ -146,12 +170,12 @@ resolve_docker_platform_or_fail() {
   fi
 }
 
-build_docker_image() {
-  platform="$(resolve_docker_platform_or_fail)"
-  if ! docker images | grep -q "$VPN_DOCKER_IMAGE_NAME" || test "$REBUILD_IMAGE" != "false"
+build_container_image() {
+  platform="$(resolve_container_platform_or_fail)"
+  if ! "$CONTAINER_BIN" images | grep -q "$(_vpn_container_image_name)" || test "$REBUILD_IMAGE" != "false"
   then
-    docker build --platform "$platform" \
-      -t "$VPN_DOCKER_IMAGE_NAME" \
+    "$CONTAINER_BIN" build --platform "$platform" \
+      -t "$(_vpn_container_image_name)" \
       -f $(dirname $0)/Dockerfile $(dirname $0)
   fi
 }
@@ -169,15 +193,20 @@ start_vpn() {
   create_openvpn_up_scripts
   create_openvpn_down_scripts
 
-  build_docker_image || return 1
-  vol_name=$(build_docker_volume "$VPN_CONTAINER_NAME") || return 1
-  cookie_vol=$(build_docker_volume "${VPN_CONTAINER_NAME}-cookies") || return 1
+  build_container_image || return 1
+  vol_name=$(build_container_volume "$(_vpn_container_name)") || return 1
+  cookie_vol=$(build_container_volume "$(_vpn_container_name)-cookies") || return 1
+  if "$CONTAINER_BIN" ps -a | grep -q "$(_vpn_container_name)"
+  then
+    >&2 echo "ERROR: VPN container '$(_vpn_container_name)' is either running or stopped recently; run 'stop_vpn' and try again."
+    return 1
+  fi
   if test -z "$cert_path" || test -z "$key_path"
   then
-    docker run --detach \
-      --name "$VPN_CONTAINER_NAME" \
-      --tty \
+    "$CONTAINER_BIN" run --detach \
+      --name "$(_vpn_container_name)" \
       --env-file "$ENV_FILE" \
+      -e VERBOSE="$VERBOSE" \
       -v "$(openvpn_config_file):/etc/openvpn/openvpn.config" \
       -v "$(openvpn_login_file):/login_info" \
       -v "$(openvpn_up_file):/additional_up_scripts.sh" \
@@ -186,13 +215,13 @@ start_vpn() {
       -v "${cookie_vol}:/cookies" \
       --privileged \
       --net=host \
-      $VPN_DOCKER_IMAGE_NAME >/dev/null
+      "$(_vpn_container_image_name)" >/dev/null
     connect_to_vnc_server_if_oidc_login_required
   else
-    docker run --detach \
-      --name "$VPN_CONTAINER_NAME" \
-      --tty \
+    "$CONTAINER_BIN" run --detach \
+      --name "$(_vpn_container_name)" \
       --env-file "$ENV_FILE" \
+      -e VERBOSE="$VERBOSE" \
       -v $cert_path:/certificate \
       -v $key_path:/key \
       -v "$(openvpn_config_file):/etc/openvpn/openvpn.config" \
@@ -203,7 +232,7 @@ start_vpn() {
       -v "${cookie_vol}:/cookies" \
       --privileged \
       --net=host \
-      $VPN_DOCKER_IMAGE_NAME >/dev/null
+      "$(_vpn_container_image_name)" >/dev/null
     connect_to_vnc_server_if_oidc_login_required
   fi
 }
@@ -215,8 +244,8 @@ stop_vpn() {
     exit 1
   fi
 
-  docker rm -f "$VPN_CONTAINER_NAME"  || true
+  >/dev/null "$CONTAINER_BIN" rm -f "$(_vpn_container_name)"  || true
   delete_openvpn_login_and_config_file_if_present
   delete_openvpn_scripts
-  delete_docker_volume_if_requested "$VPN_CONTAINER_NAME"
+  delete_container_volume_if_requested "$(_vpn_container_name)"
 }

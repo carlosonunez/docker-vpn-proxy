@@ -240,3 +240,13 @@ Remove any `docker_vpn` images before doing this.
 Check your username and password. If you're connecting to a GlobalProtect
 VPN that is SSO enabled, make sure that you don't have the arguments
 outlined in the warning above in your `$OPENCONNECT_OPTIONS`.
+
+### I'd like to use `podman`; how can I do that?
+
+Set `CONTAINER_BIN` to `podman` before running `start_vpn.sh` or `start_vpn.sh`.
+However, there are issues with starting VPN devices in Podman containers that
+might prevent this from working.
+
+See [this Ask Ubuntu
+thread](https://askubuntu.com/questions/1546511/ioctl-tunsetiff-fails-with-eperm-inside-a-podman-container-in-ubuntu-noble)
+for more details.
