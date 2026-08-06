@@ -30,13 +30,21 @@ Use this if you want to use VPN but don't want it taking over all traffic on you
 - NordVPN
 - Other major VPN providers
 
+### via other means
+
+- Netbird
+
 ## Not Compatible With
 
 - Citrix Netscaler (no open-source tool available for it)
 
 ## How do I use?
 
-First, create an `.env` file containing the following:
+### Configuring docker-proxy
+
+First, create an `.env` file containing one of the configuration snippets below.
+
+> 📝 An up-to-date example is provided at `.env.example`. _Don't use quotes around the values!_
 
 ### openconnect
 
@@ -80,7 +88,17 @@ up /etc/openvpn/update-systemd-resolve.sh
 up /etc/openvpn/update-systemd-network.sh
 ```
 
-An update to date example is provided at `.env.example`. _Don't use quotes around the values!_
+### Netbird
+
+```
+NETBIRD_URL=https://your-management-url
+```
+
+> 📝 If your env file has `OPENVPN_CONFIG_FILE` set, add `DISABLE_OPENVPN=true`
+> to prevent Docker Proxy from trying OpenVPN first.
+
+
+### Starting and stopping Docker Proxy
 
 Next, start the VPN: `./start_vpn.sh`. You will not see any output if successful.
 

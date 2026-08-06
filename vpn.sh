@@ -27,9 +27,9 @@ _vpn_container_image_name() {
   local image_name base_image_name
   base_image_name="local/${CONTAINER_BIN}_vpn"
   image_name="$VPN_DOCKER_IMAGE_NAME"
-  test -n "$ENV_FILE" && image_name="${base_image_name}_$(base64 -w 0 <<< "$ENV_FILE" | head -c 24 | tr '[:upper:]' '[:lower:]')"
+  test -n "$ENV_FILE" && image_name="${base_image_name}_$(basename "${ENV_FILE//.env/}")_$(base64 -w 0 <<< "$ENV_FILE" | tail -c 12 | tr -d '=' |tr '[:upper:]' '[:lower:]')"
   test -z "$image_name" && image_name="$base_image_name"
-  echo "$image_name"
+  echo "$image_name" | tr '-' '_'
 }
 
 _vpn_container_name() {
@@ -180,6 +180,26 @@ build_container_image() {
   fi
 }
 
+print_netbird_activation_url_if_present() {
+  test -z "$NETBIRD_URL" && return 0
+  attempts_left=5
+  while test "$attempts_left" -ne 0
+  do
+    2>&1 "$CONTAINER_BIN" logs "$(_vpn_container_name)" | grep -q "Management: Connected" && return 0
+    activation_url=$(2>&1 "$CONTAINER_BIN" logs "$(_vpn_container_name)" |
+      grep -A 2 "use this URL to log in" |
+      tail -1)
+    if test -n "$activation_url"
+    then
+      >&2 echo "INFO: Visit this URL to finish activating Netbird: $activation_url"
+      return 0
+    fi
+    >&2 echo "INFO: Waiting for activation URL (attempts left: $attempts_left)"
+    attempts_left=$((attempts_left-1))
+    sleep 1
+  done
+}
+
 start_vpn() {
   if ! env_file_present
   then
@@ -196,6 +216,7 @@ start_vpn() {
   build_container_image || return 1
   vol_name=$(build_container_volume "$(_vpn_container_name)") || return 1
   cookie_vol=$(build_container_volume "$(_vpn_container_name)-cookies") || return 1
+  netbird_vol=$(build_container_volume "$(_vpn_container_name)-netbird") || return 1
   if "$CONTAINER_BIN" ps -a | grep -q "$(_vpn_container_name)"
   then
     >&2 echo "ERROR: VPN container '$(_vpn_container_name)' is either running or stopped recently; run 'stop_vpn' and try again."
@@ -213,6 +234,7 @@ start_vpn() {
       -v "$(openvpn_down_file):/additional_down_scripts.sh" \
       -v "${vol_name}:/mnt/extras" \
       -v "${cookie_vol}:/cookies" \
+      -v "${netbird_vol}:/var/lib/netbird" \
       --privileged \
       --net=host \
       "$(_vpn_container_image_name)" >/dev/null
@@ -230,11 +252,13 @@ start_vpn() {
       -v "$(openvpn_down_file):/additional_down_scripts.sh" \
       -v "${vol_name}:/mnt/extras" \
       -v "${cookie_vol}:/cookies" \
+      -v "${netbird_vol}:/var/lib/netbird" \
       --privileged \
       --net=host \
       "$(_vpn_container_image_name)" >/dev/null
     connect_to_vnc_server_if_oidc_login_required
   fi
+  print_netbird_activation_url_if_present
 }
 
 stop_vpn() {
@@ -247,5 +271,8 @@ stop_vpn() {
   >/dev/null "$CONTAINER_BIN" rm -f "$(_vpn_container_name)"  || true
   delete_openvpn_login_and_config_file_if_present
   delete_openvpn_scripts
+  for vol in cookie netbird
+  do delete_container_volume_if_requested "$(_vpn_container_name)-$vol"
+  done
   delete_container_volume_if_requested "$(_vpn_container_name)"
 }

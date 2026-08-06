@@ -43,11 +43,21 @@ RUN chmod +x /etc/openvpn/update-resolv-conf.sh
 FROM openvpn AS common-finalconfigs
 RUN apt -y install ca-certificates && update-ca-certificates
 
-FROM common-finalconfigs AS app
+FROM common-finalconfigs AS gp-saml-gui
 RUN rm -f /usr/sbin/resolvconf
 RUN wget -O /usr/local/bin/test-globalprotect-login.py https://raw.githubusercontent.com/dlenski/gp-saml-gui/master/test-globalprotect-login.py
 RUN chmod +x /usr/local/bin/test-globalprotect-login.py
 RUN apt -y install sudo # gp-saml-gui requires sudo
+
+FROM gp-saml-gui AS netbird
+RUN apt-get update
+RUN apt-get install ca-certificates gnupg -y
+RUN curl -sSL https://pkgs.netbird.io/debian/public.key | gpg --dearmor --output /usr/share/keyrings/netbird-archive-keyring.gpg
+RUN echo 'deb [signed-by=/usr/share/keyrings/netbird-archive-keyring.gpg] https://pkgs.netbird.io/debian stable main' | tee /etc/apt/sources.list.d/netbird.list
+RUN apt -y update
+RUN apt -y install netbird
+
+FROM netbird AS app
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
