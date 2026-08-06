@@ -90,6 +90,9 @@ Next, start the VPN: `./start_vpn.sh`. You will not see any output if successful
 Finally, configure your browser to use the proxy by setting its HTTP proxy to `localhost:8118`
 and SOCKS proxy to `localhost:8889`.
 
+> **NOTE**: Set `HTTP_PROXY_PORT` and `SOCKS5_PROXY_PORT` in your environment dotfile to change the HTTP and
+> SOCKS5 proxy ports respectively.
+
 To stop the VPN, simply run: `./stop_vpn.sh`.
 
 **NOTE**: If your `.env` file is not in your current working directory, use this instead:
@@ -210,8 +213,11 @@ HTTP_PROXY=localhost:8118 HTTPS_PROXY=localhost:8118 SOCKS_PROXY=localhost:8889 
 Most VPN slowness can be resolved by restarting the VPN container. Run this to do that:
 `./restart_vpn.sh`.
 
-**NOTE**: If your `.env` file is not in your current working directory, use this instead:
-`ENV_FILE=/path/to/env ./restart_vpn.sh`
+> **NOTE**: If your `.env` file is not in your current working directory, use this instead:
+>
+> ```sh
+> ENV_FILE=/path/to/env ./restart_vpn.sh
+> ```
 
 ### I need to use a csd-wrapper script to connect to my VPN. How can I do that?
 

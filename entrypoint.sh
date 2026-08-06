@@ -1,8 +1,12 @@
 #!/bin/bash
-/usr/local/bin/microsocks -i 0.0.0.0 -p 8889 & 
+>&2 echo "Starting docker-proxy VPN helper."
+test -n "$VERBOSE" && set -x
+proxy_port="${HTTP_PROXY_PORT:-8118}"
+socks_port="${SOCKS5_PROXY_PORT:-8889}"
+/usr/local/bin/microsocks -i 0.0.0.0 -p "$socks_port" & 
 cat >/etc/privoxy/config <<-PRIVOXY_CONFIG
-listen-address          0.0.0.0:8118
-forward-socks5          /             127.0.0.1:8889    .
+listen-address          0.0.0.0:$proxy_port
+forward-socks5          /             127.0.0.1:$socks_port    .
 PRIVOXY_CONFIG
 privoxy /etc/privoxy/config &
 
