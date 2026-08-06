@@ -1,6 +1,7 @@
 # polipo seems to have been removed or not ported into Focal
-FROM ubuntu:noble AS base
-MAINTAINER Carlos Nunez <dev@carlosnunez.me>
+FROM ubuntu:questing AS base
+LABEL maintainer="Carlos Nunez <dev@carlosnunez.me>"
+LABEL io.containers.seccomp.profile=unconfined
 
 RUN apt -y update
 RUN ln -snf /usr/share/zoneinfo/UTC /etc/localtime && printf UTC > /etc/timezone
@@ -19,9 +20,10 @@ RUN mkdir /trojans && \
 FROM openconnect AS openconnect-saml-support
 RUN DEBIAN_FRONTEND=noninteractive apt -y install libc6 # This takes forever to install; installing it separately.
 RUN apt -y install x11vnc xvfb gir1.2-gtk-3.0 gir1.2-webkit2-4.1
-RUN apt -y install python3-pip python3-gi libcairo2-dev pkg-config python3-dev
+RUN apt -y install python3-pip python3-gi libcairo2-dev pkg-config python3-dev build-essential
 RUN mkdir ~/.vnc
-RUN pip3 install pycairo https://github.com/carlosonunez/gp-saml-gui/archive/master.zip --break-system-packages
+RUN pip3 install setuptools pycairo --break-system-packages
+RUN pip3 install https://github.com/carlosonunez/gp-saml-gui/archive/master.zip --break-system-packages
 
 
 FROM openconnect-saml-support AS proxies
